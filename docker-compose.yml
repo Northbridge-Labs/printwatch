@@ -1,0 +1,102 @@
+name: printwatch
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-printwatch}
+      POSTGRES_USER: ${POSTGRES_USER:-printwatch}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-printwatch}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-printwatch}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  cache:
+    image: valkey/valkey:7
+    restart: unless-stopped
+    command: ["valkey-server", "--appendonly", "yes"]
+    volumes:
+      - valkeydata:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    env_file: .env
+    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3
+    volumes:
+      - ./backend:/app
+      - spool:/var/lib/printwatch/spool
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      cache:
+        condition: service_healthy
+
+  zmq-consumer:
+    build: ./backend
+    restart: unless-stopped
+    env_file: .env
+    command: python manage.py run_consumer
+    volumes:
+      - ./backend:/app
+      - spool:/var/lib/printwatch/spool
+    depends_on:
+      backend:
+        condition: service_started
+
+  worker:
+    build: ./backend
+    restart: unless-stopped
+    env_file: .env
+    command: celery -A config worker -l info
+    volumes:
+      - ./backend:/app
+    depends_on:
+      cache:
+        condition: service_healthy
+
+  beat:
+    build: ./backend
+    restart: unless-stopped
+    env_file: .env
+    command: celery -A config beat -l info
+    volumes:
+      - ./backend:/app
+    depends_on:
+      cache:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      target: dev
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
+  valkeydata:
+  spool:
