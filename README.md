@@ -1,5 +1,7 @@
 # PrintWatch (Beta)
 
+## This software is in beta version.
+
 Printer management & print job logging platform (similar to PaperCut).
 Captures print/scan/copy jobs from CUPS (Linux/macOS) and Windows spoolers,
 stores them in PostgreSQL, computes cost, enforces quotas, raises alerts,
