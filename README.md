@@ -139,6 +139,10 @@ against a test PostgreSQL.
 4. Inspect the full schema at `/api/schema/` for client codegen
    (`openapi-generator-cli generate -i http://localhost:8000/api/schema/ -g typescript-axios`).
 
+## Corporate support
+
+Get in touch for corporate support: contato@northbridgelabs.com.br
+
 ## License
 
 MIT.
